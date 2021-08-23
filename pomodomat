@@ -1,0 +1,96 @@
+#!/bin/bash
+
+# title			:pomodomat
+# version		:1.0
+# url			:https://github.com/Dimithrandir/pomodomat
+# author		:Dimithrandir
+# description	:Simple script to help focus using the pomodoro technique.
+
+usage() {
+	cat << EOF
+Usage: pomodomat [OPTIONS]
+Start a pomodoro cycle
+  -h, --help			Print this message and exit
+  -d DUR, --duration DUR	Duration of a single session in minutes (default is 20)
+  -s SHORT, --short-break SHORT	Duration of short breaks between sessions in minutes (default is 5)
+  -l LONG, --long-break LONG	Duration of long breaks between sessions in minutes (default is 15)
+  -n N, --small-rounds N	Number of sessions (default is 3)
+  -m M, --big-rounds M		Number of cycles of sessions (default is 3)
+EOF
+	exit 1
+}
+
+name=pomodomat
+
+duration=1200
+break_short=300
+break_long=900
+rounds_small=3
+rounds_big=3
+
+icon_on="$(pwd)/pomodomat.png"
+icon_off="$(pwd)/pomodomat-off.png"
+
+sound_session="/usr/share/sounds/freedesktop/stereo/bell.oga"
+sound_break="/usr/share/sounds/freedesktop/stereo/complete.oga"
+
+# if pomodomat is already running, end that session and exit
+[[ $( pidof -x "$name" | wc -w ) -gt 2 ]] && notify-send -a "$name" -i "$icon_off" "$name" "Session terminated" && kill $( pidof -x "$name" | awk '{print $3}' ) && exit 1
+
+while : ; do
+	case "$1" in 
+		-d | --duration)
+			duration=$(( "$2" * 60 ))
+			shift 2 
+			;;
+		-s | --short-break)
+			break_short=$(( "$2" * 60 ))
+			shift 2
+			;;
+		-l | --long-break)
+			break_long=$(( "$2" * 60 ))
+			shift 2
+			;;
+		-n | --small-rounds)
+			rounds_small="$2"
+			shift 2
+			;;
+		-m | --big-rounds)
+			rounds_big="$2"
+			shift 2
+			;;
+		-h | --help)
+			usage
+			;;
+		-*)
+			echo "Unknown option $1"
+			break
+			;;
+		*)
+			break
+			;;
+	esac
+done
+
+# Work start
+for (( i=0 ; i < "$rounds_big" ; i++ )) ; do
+	for (( j=0 ; j < "$rounds_small" ; j++ )) ; do
+		# session start
+		notify-send -a "$name" -i "$icon_on" "$name" "$(( $duration / 60 )) min session"
+		paplay "$sound_session"
+		sleep "$duration"
+		[[ "$j" -eq $(( $rounds_small - 1 )) ]] && break 
+		# small break
+		notify-send -a "$name" -i "$icon_off" "$name" "$(( $break_short / 60 )) min break"
+		paplay "$sound_break"
+		sleep "$break_short"
+	done
+	[[ "$i" -eq $(( $rounds_big - 1 )) ]] && break 
+	# long break
+	notify-send -a "$name" -i "$icon_off" "$name" "$(( $break_long / 60 )) min break"
+	paplay "$sound_break"
+	sleep "$break_long"
+done
+# Work end
+notify-send -a "$name" -i "$icon_on" "$name" "Work session ended"
+paplay "$sound_break"
